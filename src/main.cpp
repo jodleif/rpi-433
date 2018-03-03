@@ -121,17 +121,42 @@ void print_temp(const boost::circular_buffer<std::int32_t> &stuff)
     std::cout << median / (10.0) << " celcius" << std::endl;
 }
 
+template<typename Array, typename RingBuffer>
+void parse_and_print_signal(Array const & buffer, RingBuffer & results)
+{
+    using namespace std::chrono_literals;
+    auto signal = sensor::SensorFormat(buffer);
 
-void read_temperatures()
+    if (signal.is_valid()) {
+        results.push_back(signal.tempc);
+        print_temp(results);
+        if(results.size()==3) {
+            std::this_thread::sleep_for(5s);
+        }
+    } else {
+        debug::debug_print("Invalid reading!!");
+    }
+}
+
+using MicroSec = std::chrono::microseconds;
+template<typename... Args>
+auto to_microsec(Args&&... t) -> decltype(std::chrono::duration_cast<MicroSec>(std::forward<Args>(t)...))
+{
+    return std::chrono::duration_cast<MicroSec>(std::forward<Args>(t)...);
+}
+
+void read_temperatures(GPIOPort & p)
 {
     steady_clock clk;
     using sensor::Coding;
     std::ios::sync_with_stdio(false);
-    auto p = GPIOPort(17);
     using MicroSec = std::chrono::microseconds;
     using namespace std::chrono_literals;
+
     std::array<Coding, 36> buffer;
     boost::circular_buffer<std::int32_t> results(3);
+
+
     std::int32_t counter{0};
     while (true) {
         top:;
@@ -139,10 +164,9 @@ void read_temperatures()
         wait_for_val(p, clk, 0);
         auto now = clk.now();
         wait_for_val(p, clk, 1);
-        auto duration = std::chrono::duration_cast<MicroSec>(clk.now() - now);
+        auto duration = to_microsec(clk.now() - now);
         if (duration > 500us && duration < 1100us) {
             buffer[counter] = Coding::ZERO;
-
         } else if (duration > 1500us && duration < 2500us) {
             buffer[counter] = Coding::ONE;
         } else if (duration > 3000us) {
@@ -150,16 +174,7 @@ void read_temperatures()
             goto top;
         }
         if (counter >= 35) {
-            auto signal = sensor::SensorFormat(buffer);
-            if (signal.is_valid()) {
-                results.push_back(signal.tempc);
-                print_temp(results);
-                if(results.size()==3) {
-                    std::this_thread::sleep_for(5s);
-                }
-            } else {
-                debug::debug_print("Invalid reading!!");
-            }
+            parse_and_print_signal(buffer,results);
             counter = 0;
             goto top;
         }
@@ -203,11 +218,12 @@ int main(int argc, char *argv[])
 {
     set_affinity();
     set_thread_prio();
+    auto p = GPIOPort(17);
 
     if (argc >= 2) {
         record();
     } else {
-        read_temperatures();
+        read_temperatures(p);
     }
     return 0;
 }
