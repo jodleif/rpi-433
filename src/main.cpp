@@ -153,9 +153,9 @@ void read_temperatures()
             auto signal = sensor::SensorFormat(buffer);
             if (signal.is_valid()) {
                 results.push_back(signal.tempc);
-                if (rand() % 3 == 0) {
-                    print_temp(results);
-                    if(results.size()==3) {std::this_thread::sleep_for(5s);}
+                print_temp(results);
+                if(results.size()==3) {
+                    std::this_thread::sleep_for(5s);
                 }
             } else {
                 debug::debug_print("Invalid reading!!");
