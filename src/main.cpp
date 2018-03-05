@@ -5,6 +5,7 @@
 #include <array>
 #include <thread>
 #include <boost/circular_buffer.hpp>
+#include <readerwriterqueue.h>
 #include <temperature_sensor.h>
 #include <numeric>
 #include "memory_read.h"
@@ -105,17 +106,12 @@ void print_temp(const boost::circular_buffer<std::int32_t> &stuff)
 }
 
 template<typename Array, typename RingBuffer>
-void parse_and_print_signal(Array const & buffer, RingBuffer & results)
+void parse_and_enqueue_signal(Array const &buffer, moodycamel::ReaderWriterQueue<std::int32_t> &results)
 {
-    using namespace std::chrono_literals;
     auto signal = sensor::SensorFormat(buffer);
 
     if (signal.is_valid()) {
-        results.push_back(signal.tempc);
-        print_temp(results);
-        if(results.size()==3) {
-            std::this_thread::sleep_for(5s);
-        }
+        results.enqueue(signal.tempc);
     } else {
         debug::debug_print("Invalid reading!!");
     }
@@ -128,7 +124,7 @@ auto to_microsec(Args&&... t) -> decltype(std::chrono::duration_cast<MicroSec>(s
     return std::chrono::duration_cast<MicroSec>(std::forward<Args>(t)...);
 }
 
-void read_temperatures(GPIOPort & p)
+void read_temperatures(GPIOPort & p, moodycamel::ReaderWriterQueue<std::int32_t> & queue)
 {
     steady_clock clk;
     using sensor::Coding;
@@ -136,7 +132,6 @@ void read_temperatures(GPIOPort & p)
     using namespace std::chrono_literals;
 
     std::array<Coding, 36> buffer;
-    boost::circular_buffer<std::int32_t> results(3);
 
 
     std::int32_t counter{0};
@@ -156,7 +151,7 @@ void read_temperatures(GPIOPort & p)
             goto top;
         }
         if (counter >= 35) {
-            parse_and_print_signal(buffer,results);
+            parse_and_enqueue_signal(buffer, queue);
             counter = 0;
             goto top;
         }
@@ -198,12 +193,13 @@ void set_thread_prio (std::thread& t)
 }
 int main(int argc, char **)
 {
+    moodycamel::ReaderWriterQueue<std::int32_t> queue(50);
     if (argc >= 2) {
         record();
     } else {
-        std::thread t([](){
+        std::thread t([&queue](){
             auto p = GPIOPort(17);
-            read_temperatures(p);
+            read_temperatures(p,queue);
         });
 
         set_affinity(t);
