@@ -20,7 +20,7 @@ struct Reads {
     };
 };
 
-
+namespace {
 using std::chrono::steady_clock;
 
 void print_duration(const Reads r)
@@ -28,8 +28,8 @@ void print_duration(const Reads r)
     std::cout << r.delta_start.count() << ", " << r.value << "\n";
 }
 
-template<typename Clock, typename TimePoint>
-inline void wait_for(Clock &clk, TimePoint until) noexcept
+template<typename TimePoint>
+inline void wait_for(TimePoint until) noexcept
 {
 
     std::this_thread::sleep_until(until);
@@ -60,7 +60,7 @@ void record()
         tp now = clk.now();
         MicroSec dur = std::chrono::duration_cast<MicroSec>(now - start);
         durations.emplace_back(Reads(dur, p.read_gpio()));
-        wait_for(clk, now + 20us);
+        wait_for(now + 20us);
     }
     std::cerr << "Done recording, recorded for:"
               << std::chrono::duration_cast<std::chrono::seconds>(clk.now() - st).count() << "seconds\n";
@@ -69,24 +69,7 @@ void record()
     std::cerr << "Size of Reads: " << sizeof(Reads) << '\n';
 }
 
-bool wait_for_val(GPIOPort &port, steady_clock &clk, std::uint32_t val, std::size_t req)
-{
-
-    boost::circular_buffer<std::int8_t> buffer(req, -1);
-    using namespace std::chrono_literals;
-    while (true) {
-        auto now = clk.now();
-        buffer.push_back(port.read_gpio());
-        if (std::all_of(buffer.begin(), buffer.end(), [val](const auto v) {
-            return v == val;
-        })) {
-            return true;
-        }
-        wait_for(clk, now + 20us);
-    }
-}
-
-bool wait_for_val(GPIOPort &port, steady_clock &clk, std::uint32_t val) noexcept
+bool wait_for_val(GPIOPort &port, steady_clock &clk, std::uint8_t val) noexcept
 {
 
     using namespace std::chrono_literals;
@@ -96,7 +79,7 @@ bool wait_for_val(GPIOPort &port, steady_clock &clk, std::uint32_t val) noexcept
         if (read == val) {
             return true;
         }
-        wait_for(clk, now + 20us);
+        wait_for(now + 20us);
     }
 }
 
@@ -150,7 +133,6 @@ void read_temperatures(GPIOPort & p)
     steady_clock clk;
     using sensor::Coding;
     std::ios::sync_with_stdio(false);
-    using MicroSec = std::chrono::microseconds;
     using namespace std::chrono_literals;
 
     std::array<Coding, 36> buffer;
@@ -213,8 +195,8 @@ void set_thread_prio ()
 
     std::puts("Max pri set!");
 }
-
-int main(int argc, char *argv[])
+}
+int main(int argc, char **)
 {
     set_affinity();
     set_thread_prio();

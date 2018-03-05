@@ -48,7 +48,7 @@ volatile std::uint32_t *setup_io() noexcept
     close(mem_fd); //No need to keep mem_fd open after mmap
 
     if (gpio_map == MAP_FAILED) {
-        printf("mmap error %d\n", reinterpret_cast<std::intptr_t>(gpio_map));//errno also set!
+        std::puts("mmap error"); //errno also set!
         return nullptr;
     }
 
