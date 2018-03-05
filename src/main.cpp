@@ -165,22 +165,22 @@ void read_temperatures(GPIOPort & p)
     }
 }
 
-void set_affinity()
+void set_affinity(std::thread& t)
 {
     std::puts("Setting affinity to CPU 0");
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
     CPU_SET(0, &cpuset);
-    auto handle = std::this_thread::get_id();
+    auto handle = t.native_handle();
     auto native_handle = *(reinterpret_cast<pthread_t*>(&handle));
     pthread_setaffinity_np(native_handle, sizeof(cpu_set_t), &cpuset);
     std::puts("Affinity set");
 }
 
-void set_thread_prio ()
+void set_thread_prio (std::thread& t)
 {
     std::puts("Setting maximum priority for thread");
-    auto handle = std::this_thread::get_id();
+    auto handle = t.native_handle();
     auto native_handle = *(reinterpret_cast<pthread_t*>(&handle));
 
     int policy {0};
@@ -198,14 +198,18 @@ void set_thread_prio ()
 }
 int main(int argc, char **)
 {
-    set_affinity();
-    set_thread_prio();
-    auto p = GPIOPort(17);
-
     if (argc >= 2) {
         record();
     } else {
-        read_temperatures(p);
+        std::thread t([](){
+            auto p = GPIOPort(17);
+            read_temperatures(p);
+        });
+
+        set_affinity(t);
+        set_thread_prio(t);
+
+        t.join();
     }
     return 0;
 }
