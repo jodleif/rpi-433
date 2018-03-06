@@ -201,6 +201,7 @@ int main(int argc, char **)
     } else {
         std::thread t([&queue]() {
             auto p = GPIOPort(17);
+            debug::debug_print("Listening on GPIO port 17");
             read_temperatures(p, queue);
         });
 
@@ -209,9 +210,11 @@ int main(int argc, char **)
         boost::circular_buffer<std::int32_t> buf(5, 0);
         while (true) {
             using namespace std::chrono_literals;
+            debug::debug_print("Sleeping");
             std::this_thread::sleep_for(10s);
             std::int32_t res{};
             while (queue.try_dequeue(res)) {
+                debug::debug_print("Enqueueing value");
                 buf.push_back(res);
             }
             std::sort(buf.begin(), buf.end());
@@ -219,7 +222,6 @@ int main(int argc, char **)
         }
         t.join();
     }
+    return 0;
 }
 
-return 0;
-}
