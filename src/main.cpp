@@ -118,13 +118,14 @@ void parse_and_enqueue_signal(Array const &buffer, Queue &results)
 }
 
 using MicroSec = std::chrono::microseconds;
+
 template<typename... Args>
-auto to_microsec(Args&&... t) -> decltype(std::chrono::duration_cast<MicroSec>(std::forward<Args>(t)...))
+auto to_microsec(Args &&... t) -> decltype(std::chrono::duration_cast<MicroSec>(std::forward<Args>(t)...))
 {
     return std::chrono::duration_cast<MicroSec>(std::forward<Args>(t)...);
 }
 
-void read_temperatures(GPIOPort & p, moodycamel::ReaderWriterQueue<std::int32_t> & queue)
+void read_temperatures(GPIOPort &p, moodycamel::ReaderWriterQueue<std::int32_t> &queue)
 {
     steady_clock clk;
     using sensor::Coding;
@@ -160,25 +161,25 @@ void read_temperatures(GPIOPort & p, moodycamel::ReaderWriterQueue<std::int32_t>
     }
 }
 
-void set_affinity(std::thread& t)
+void set_affinity(std::thread &t)
 {
     std::puts("Setting affinity to CPU 0");
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
     CPU_SET(0, &cpuset);
     auto handle = t.native_handle();
-    auto native_handle = *(reinterpret_cast<pthread_t*>(&handle));
+    auto native_handle = *(reinterpret_cast<pthread_t *>(&handle));
     pthread_setaffinity_np(native_handle, sizeof(cpu_set_t), &cpuset);
     std::puts("Affinity set");
 }
 
-void set_thread_prio (std::thread& t)
+void set_thread_prio(std::thread &t)
 {
     std::puts("Setting maximum priority for thread");
     auto handle = t.native_handle();
-    auto native_handle = *(reinterpret_cast<pthread_t*>(&handle));
+    auto native_handle = *(reinterpret_cast<pthread_t *>(&handle));
 
-    int policy {0};
+    int policy{0};
     pthread_attr_t thattr;
     pthread_attr_init(&thattr);
     pthread_attr_getschedpolicy(&thattr, &policy);
@@ -191,20 +192,32 @@ void set_thread_prio (std::thread& t)
     std::puts("Max pri set!");
 }
 }
+
 int main(int argc, char **)
 {
     moodycamel::ReaderWriterQueue<std::int32_t> queue(50);
     if (argc >= 2) {
         record();
     } else {
-        std::thread t([&queue](){
+        std::thread t([&queue]() {
             auto p = GPIOPort(17);
-            read_temperatures(p,queue);
+            read_temperatures(p, queue);
         });
 
         set_affinity(t);
         set_thread_prio(t);
-
+        boost::circular_buffer<std::int32_t> buf(5, 0);
+        while (true) {
+            using namespace std::chrono_literals;
+            std::this_thread::sleep_for(10s);
+            if (queue.size_approx() > 0) {
+                while (queue.size_approx() > 0) {
+                    buf.push_back(queue.pop());
+                }
+                std::sort(buf.begin(), buf.end());
+                std::cout << buf[2] << "*C\n";
+            }
+        }
         t.join();
     }
     return 0;
