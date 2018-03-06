@@ -129,7 +129,6 @@ void read_temperatures(GPIOPort &p, moodycamel::ReaderWriterQueue<std::int32_t> 
 {
     steady_clock clk;
     using sensor::Coding;
-    std::ios::sync_with_stdio(false);
     using namespace std::chrono_literals;
 
     std::array<Coding, 36> buffer;
@@ -207,21 +206,25 @@ int main(int argc, char **)
 
         set_affinity(t);
         set_thread_prio(t);
-        boost::circular_buffer<std::int32_t> buf(5, 0);
-        while (true) {
-            using namespace std::chrono_literals;
-            std::int32_t res{};
-            std::int32_t counter {};
-            while (queue.try_dequeue(res)) {
-                debug::debug_print("Enqueueing value");
-                buf.push_back(res);
-                ++counter;
-            }
-            if(counter>3){
-            std::sort(buf.begin(), buf.end());
-            std::cout << buf[2] << "*C\n";
+        std::thread t2([&queue](){
+            boost::circular_buffer<std::int32_t> buf(5, 0);
+            while (true) {
+                std::this_thread::sleep_for(10s);
+                using namespace std::chrono_literals;
+                std::int32_t res{};
+                std::int32_t counter {};
+                while (queue.try_dequeue(res)) {
+                    debug::debug_print("Enqueueing value");
+                    buf.push_back(res);
+                    ++counter;
                 }
-        }
+                if(counter>3){
+                    std::sort(buf.begin(), buf.end());
+                    std::cout << buf[2] << "*C\n";
+                }
+            }
+        });
+        t2.join();
         t.join();
     }
     return 0;
