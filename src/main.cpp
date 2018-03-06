@@ -190,6 +190,30 @@ void set_thread_prio(std::thread &t)
 
     std::puts("Max pri set!");
 }
+
+template<typename Queue>
+std::thread print_loop(Queue &q)
+{
+
+    return std::thread([&q]() {
+        boost::circular_buffer<std::int32_t> buf(5, 0);
+        while (true) {
+            using namespace std::chrono_literals;
+            std::this_thread::sleep_for(10s);
+            std::int32_t res{};
+            std::int32_t counter{};
+            while (q.try_dequeue(res)) {
+                buf.push_back(res);
+                ++counter;
+            }
+            if (counter > 3) {
+                std::sort(buf.begin(), buf.end());
+                std::cout << buf[2] / 10.0 << "*C\n";
+            }
+        }
+    });
+}
+
 }
 
 int main(int argc, char **)
@@ -206,24 +230,8 @@ int main(int argc, char **)
 
         set_affinity(t);
         set_thread_prio(t);
-        std::thread t2([&queue](){
-            boost::circular_buffer<std::int32_t> buf(5, 0);
-            while (true) {
-                std::this_thread::sleep_for(10s);
-                using namespace std::chrono_literals;
-                std::int32_t res{};
-                std::int32_t counter {};
-                while (queue.try_dequeue(res)) {
-                    debug::debug_print("Enqueueing value");
-                    buf.push_back(res);
-                    ++counter;
-                }
-                if(counter>3){
-                    std::sort(buf.begin(), buf.end());
-                    std::cout << buf[2] << "*C\n";
-                }
-            }
-        });
+
+        auto t2 = print_loop(queue);
         t2.join();
         t.join();
     }
