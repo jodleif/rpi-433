@@ -4,7 +4,7 @@
 #pragma once
 #include <iostream>
 namespace debug {
-constexpr static bool debug {false};
+constexpr static bool debug {true};
 template <typename T>
 void debug_print(T to_print){
     if constexpr (debug) {

@@ -210,15 +210,16 @@ int main(int argc, char **)
         while (true) {
             using namespace std::chrono_literals;
             std::this_thread::sleep_for(10s);
-            if (queue.size_approx() > 0) {
-                while (queue.size_approx() > 0) {
-                    buf.push_back(queue.pop());
-                }
-                std::sort(buf.begin(), buf.end());
-                std::cout << buf[2] << "*C\n";
+            std::int32_t res{};
+            while (queue.try_dequeue(res)) {
+                buf.push_back(res);
             }
+            std::sort(buf.begin(), buf.end());
+            std::cout << buf[2] << "*C\n";
         }
         t.join();
     }
-    return 0;
+}
+
+return 0;
 }
