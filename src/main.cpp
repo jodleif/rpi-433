@@ -105,8 +105,8 @@ void print_temp(const boost::circular_buffer<std::int32_t> &stuff)
     std::cout << median / (10.0) << " celcius" << std::endl;
 }
 
-template<typename Array, typename RingBuffer>
-void parse_and_enqueue_signal(Array const &buffer, moodycamel::ReaderWriterQueue<std::int32_t> &results)
+template<typename Array, typename Queue>
+void parse_and_enqueue_signal(Array const &buffer, Queue &results)
 {
     auto signal = sensor::SensorFormat(buffer);
 
