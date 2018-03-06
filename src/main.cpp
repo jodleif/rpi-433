@@ -210,7 +210,6 @@ int main(int argc, char **)
         boost::circular_buffer<std::int32_t> buf(5, 0);
         while (true) {
             using namespace std::chrono_literals;
-            debug::debug_print("Sleeping");
             std::int32_t res{};
             std::int32_t counter {};
             while (queue.try_dequeue(res)) {
