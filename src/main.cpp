@@ -211,14 +211,17 @@ int main(int argc, char **)
         while (true) {
             using namespace std::chrono_literals;
             debug::debug_print("Sleeping");
-            std::this_thread::sleep_for(10s);
             std::int32_t res{};
+            std::int32_t counter {};
             while (queue.try_dequeue(res)) {
                 debug::debug_print("Enqueueing value");
                 buf.push_back(res);
+                ++counter;
             }
+            if(counter>3){
             std::sort(buf.begin(), buf.end());
             std::cout << buf[2] << "*C\n";
+                }
         }
         t.join();
     }
