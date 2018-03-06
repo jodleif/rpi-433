@@ -11,7 +11,7 @@ find_path(ROCKSDB_ROOT_DIR
 
 find_library(ROCKSDB_LIBRARIES
         NAMES rocksdb
-        HINTS ${ROCKSDB_ROOT_DIR}/lib
+        HINTS ${ROCKSDB_ROOT_DIR}/lib/rocksdb
         )
 
 find_path(ROCKSDB_INCLUDE_DIRS
@@ -24,4 +24,4 @@ set(HEADERS include/config.h include/memory_read.h include/temperature_sensor.h)
 include_directories(include)
 include_directories(SYSTEM ${ROCKSDB_INCLUDE_DIRS} readerwriterqueue)
 add_executable(${CMAKE_PROJECT_NAME} ${SOURCES} ${HEADERS})
-target_link_libraries(${CMAKE_PROJECT_NAME} pthread ${ROCKSDB_LIBRARIES})
+target_link_libraries(${CMAKE_PROJECT_NAME} pthread atomic ${ROCKSDB_LIBRARIES})
